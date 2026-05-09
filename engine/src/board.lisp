@@ -12,6 +12,13 @@
   (halfmove 0)
   (fullmove 1))
 
+(defun copy-state (state)
+  "Create a copy of the game state, including a new board array."
+  (let ((new-state (copy-game-state state)))
+    (setf (game-state-board new-state) (copy-seq (game-state-board state)))
+    (setf (game-state-castling new-state) (copy-list (game-state-castling state)))
+    new-state))
+
 (defun char-to-piece (c)
   "Convert a FEN character to a piece struct."
   (let ((color (if (upper-case-p c) :white :black))
@@ -83,7 +90,7 @@
 
 (defun game-state-to-alist (state)
   (let ((board-list (loop for i from 0 to 63
-                          collect (piece-to-alist (aref (game-state-board state))))))
+                          collect (piece-to-alist (aref (game-state-board state) i)))))
     `((:board . ,board-list)
       (:active-color . ,(string-downcase (symbol-name (game-state-active-color state))))
       (:castling . ,(mapcar (lambda (k) (symbol-name k)) (game-state-castling state)))

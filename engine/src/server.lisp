@@ -15,7 +15,9 @@
 (hunchentoot:define-easy-handler (state-handler :uri "/state") ()
   (handle-cors)
   (setf (hunchentoot:content-type*) "application/json")
-  (cl-json:encode-json-to-string (game-state-to-alist *current-state*)))
+  (let ((state-alist (game-state-to-alist *current-state*)))
+    (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
+    (cl-json:encode-json-to-string state-alist)))
   
 (hunchentoot:define-easy-handler (move-handler :uri "/move") (from to)
   (handle-cors)
@@ -27,9 +29,11 @@
       (let* ((from-sq (parse-integer from))
              (to-sq (parse-integer to))
              (success (make-move *current-state* from-sq to-sq)))
-        (cl-json:encode-json-to-string 
-         `((:success . ,(if success 't nil))
-           (:state . ,(game-state-to-alist *current-state*)))))
+        (let ((state-alist (game-state-to-alist *current-state*)))
+          (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
+          (cl-json:encode-json-to-string 
+           `((:success . ,(if success 't nil))
+             (:state . ,state-alist)))))
       (cl-json:encode-json-to-string '((:error . "Missing from or to parameters")))))
       
 (hunchentoot:define-easy-handler (reset-handler :uri "/reset") ()
@@ -38,7 +42,9 @@
   (when (eq (hunchentoot:request-method*) :options)
     (return-from reset-handler ""))
   (setf *current-state* (initial-board))
-  (cl-json:encode-json-to-string (game-state-to-alist *current-state*)))
+  (let ((state-alist (game-state-to-alist *current-state*)))
+    (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
+    (cl-json:encode-json-to-string state-alist)))
 
 (hunchentoot:define-easy-handler (legal-moves-handler :uri "/legal-moves") (sq)
   (handle-cors)

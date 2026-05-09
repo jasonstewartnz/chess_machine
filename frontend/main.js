@@ -81,7 +81,18 @@ async function resetGame() {
 
 function updateStatus() {
   if (!gameState) return;
-  statusEl.textContent = `${gameState.activeColor === 'white' ? 'White' : 'Black'} to move`;
+  const status = gameState.status || 'active';
+  const color = gameState.activeColor === 'white' ? 'White' : 'Black';
+  
+  if (status === 'checkmate') {
+    statusEl.innerHTML = `<strong style="color: #ff4757">Checkmate! ${color === 'White' ? 'Black' : 'White'} wins!</strong>`;
+  } else if (status === 'stalemate') {
+    statusEl.innerHTML = `<strong>Stalemate! Draw.</strong>`;
+  } else if (status === 'check') {
+    statusEl.innerHTML = `${color} to move <strong style="color: #ff4757">(Check!)</strong>`;
+  } else {
+    statusEl.textContent = `${color} to move`;
+  }
 }
 
 function renderBoard() {
