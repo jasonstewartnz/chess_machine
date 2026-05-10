@@ -650,5 +650,124 @@ function updateMoveDisplay() {
   moveIndexDisplay.textContent = `${currentMoveIndex + 1} / ${gameMoveCount}`;
 }
 
+const analysisToggle = document.getElementById('analysis-toggle');
+const evalFill = document.getElementById('eval-fill');
+const evalText = document.getElementById('eval-text');
+
+analysisToggle.addEventListener('change', () => {
+  if (analysisToggle.checked) {
+    runAnalysis();
+  } else {
+    // Reset bar
+    evalFill.style.height = '50%';
+    evalText.textContent = '0.0';
+    clearBestMoveHighlight();
+  }
+});
+
+async function runAnalysis() {
+  if (!analysisToggle.checked) return;
+  
+  try {
+    const res = await fetch(`${API_BASE}/analyze`);
+    const data = await res.json();
+    if (data.success) {
+      updateEvalBar(data.score);
+      highlightBestMove(data.bestMove);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function updateEvalBar(score) {
+  if (score === null) return;
+  // score is in centipawns. +100 = 1 pawn up for white.
+  // We'll map this to a percentage where 50% is 0.0, 100% is +10.0, 0% is -10.0
+  let pawns = score / 100;
+  let displayScore = pawns.toFixed(1);
+  if (pawns > 0) displayScore = '+' + displayScore;
+  
+  evalText.textContent = displayScore;
+  
+  // Cap at +/- 10
+  let capped = Math.max(-10, Math.min(10, pawns));
+  let percentage = 50 + (capped * 5); // 50 + 50 = 100%, 50 - 50 = 0%
+  evalFill.style.height = `${percentage}%`;
+}
+
+function highlightBestMove(moveStr) {
+  clearBestMoveHighlight();
+  if (!moveStr) return;
+  
+  // moveStr is like "e2e4"
+  const fromFile = moveStr.charCodeAt(0) - 97;
+  const fromRank = 8 - parseInt(moveStr[1]);
+  const toFile = moveStr.charCodeAt(2) - 97;
+  const toRank = 8 - parseInt(moveStr[3]);
+  
+  const fromSq = fromRank * 8 + fromFile;
+  const toSq = toRank * 8 + toFile;
+  
+  const squares = document.querySelectorAll('.square');
+  squares[fromSq].classList.add('best-move-from');
+  squares[toSq].classList.add('best-move-to');
+}
+
+function clearBestMoveHighlight() {
+  document.querySelectorAll('.best-move-from, .best-move-to').forEach(el => {
+    el.classList.remove('best-move-from', 'best-move-to');
+  });
+}
+
+// Update fetchState to trigger analysis
+const originalFetchState = fetchState;
+fetchState = async () => {
+  await originalFetchState();
+  if (analysisToggle.checked) runAnalysis();
+};
+
+// Initial load
 fetchState();
 applyMode(currentMode);
+
+const scanGameBtn = document.getElementById('scan-game-btn');
+scanGameBtn.addEventListener('click', async () => {
+  scanGameBtn.disabled = true;
+  scanGameBtn.textContent = 'Scanning...';
+  try {
+    const res = await fetch(`${API_BASE}/scan-game`);
+    const data = await res.json();
+    if (data.success) {
+      markBlunders(data.analysis);
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    scanGameBtn.disabled = false;
+    scanGameBtn.textContent = 'Tactical Scan';
+  }
+});
+
+function markBlunders(analysis) {
+  // analysis is an array of {score, bestMove}
+  // score is from white's perspective? No, Stockfish uci score is usually from current side.
+  // Wait! My Lisp analyze-position doesn't adjust for side.
+  // PGN analyze-position returns the raw cp score.
+  
+  const moveElements = document.querySelectorAll('.move-item');
+  for (let i = 0; i < moveElements.length; i++) {
+    const prev = analysis[i].score;
+    const curr = analysis[i+1].score;
+    
+    if (prev !== null && curr !== null) {
+      const diff = Math.abs(curr - prev);
+      if (diff > 200) {
+        moveElements[i].classList.add('blunder');
+        moveElements[i].title = `Blunder! Eval dropped by ${(diff/100).toFixed(1)}`;
+      } else if (diff > 100) {
+        moveElements[i].classList.add('mistake');
+      }
+    }
+  }
+}

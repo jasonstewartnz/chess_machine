@@ -11,4 +11,5 @@
                   (:file "board" :depends-on ("packages"))
                   (:file "rules" :depends-on ("board"))
                   (:file "pgn" :depends-on ("rules"))
-                  (:file "server" :depends-on ("pgn"))))))
+                  (:file "stockfish" :depends-on ("rules"))
+                  (:file "server" :depends-on ("pgn" "stockfish"))))))

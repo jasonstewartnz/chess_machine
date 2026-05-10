@@ -218,6 +218,24 @@
         (cl-json:encode-json-to-string `((:success . t) (:moves . ,moves))))
       (cl-json:encode-json-to-string '((:error . "Missing sq parameter")))))
 
+(hunchentoot:define-easy-handler (analyze-handler :uri "/analyze") (fen)
+  (handle-cors)
+  (setf (hunchentoot:content-type*) "application/json")
+  (let* ((target-fen (or fen (generate-fen *current-state*)))
+         (result (analyze-position target-fen)))
+    (cl-json:encode-json-to-string 
+     `((:success . t)
+       (:score . ,(getf result :score))
+       (:bestMove . ,(getf result :best-move))))))
+
+(hunchentoot:define-easy-handler (scan-game-handler :uri "/scan-game") ()
+  (handle-cors)
+  (setf (hunchentoot:content-type*) "application/json")
+  (if *current-game-moves*
+      (let ((analysis (scan-game *current-game-moves*)))
+        (cl-json:encode-json-to-string `((:success . t) (:analysis . ,analysis))))
+      (cl-json:encode-json-to-string '((:error . "No game loaded")))))
+
 (defun start-server (&key (port 8080))
   (when *acceptor*
     (hunchentoot:stop *acceptor*))
