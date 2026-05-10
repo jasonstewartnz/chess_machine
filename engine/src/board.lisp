@@ -7,7 +7,7 @@
 (defstruct game-state
   (board (make-array 64 :initial-element nil))
   (active-color :white)
-  (castling '(:K :Q :k :q))
+  (castling '(:K :Q :|k| :|q|))
   (en-passant nil)
   (halfmove 0)
   (fullmove 1))

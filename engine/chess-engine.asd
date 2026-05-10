@@ -7,7 +7,8 @@
   :depends-on ("hunchentoot" "cl-json" "alexandria")
   :components ((:module "src"
                 :components
-                ((:file "packages")
-                 (:file "board" :depends-on ("packages"))
-                 (:file "rules" :depends-on ("board"))
-                 (:file "server" :depends-on ("rules"))))))
+                 ((:file "packages")
+                  (:file "board" :depends-on ("packages"))
+                  (:file "rules" :depends-on ("board"))
+                  (:file "pgn" :depends-on ("rules"))
+                  (:file "server" :depends-on ("pgn"))))))

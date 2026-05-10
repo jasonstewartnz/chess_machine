@@ -28,12 +28,19 @@
   (if (and from to)
       (let* ((from-sq (parse-integer from))
              (to-sq (parse-integer to))
-             (success (make-move *current-state* from-sq to-sq)))
-        (let ((state-alist (game-state-to-alist *current-state*)))
-          (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
-          (cl-json:encode-json-to-string 
-           `((:success . ,(if success 't nil))
-             (:state . ,state-alist)))))
+             (is-legal (member to-sq (legal-moves *current-state* from-sq))))
+        (if is-legal
+            (let ((san (move-to-san *current-state* from-sq to-sq))
+                  (active (game-state-active-color *current-state*))
+                  (fullmove (game-state-fullmove *current-state*)))
+              (make-move *current-state* from-sq to-sq)
+              (append-move-to-log san active fullmove)
+              (let ((state-alist (game-state-to-alist *current-state*)))
+                (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
+                (cl-json:encode-json-to-string 
+                 `((:success . t)
+                   (:state . ,state-alist)))))
+            (cl-json:encode-json-to-string '((:success . nil)))))
       (cl-json:encode-json-to-string '((:error . "Missing from or to parameters")))))
       
 (hunchentoot:define-easy-handler (reset-handler :uri "/reset") ()
@@ -42,6 +49,7 @@
   (when (eq (hunchentoot:request-method*) :options)
     (return-from reset-handler ""))
   (setf *current-state* (initial-board))
+  (init-new-game-log)
   (let ((state-alist (game-state-to-alist *current-state*)))
     (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
     (cl-json:encode-json-to-string state-alist)))
@@ -61,6 +69,8 @@
   
   ;; Reset dispatch table to avoid duplicates during restarts
   (setf hunchentoot:*dispatch-table* (list 'hunchentoot:dispatch-easy-handlers))
+  
+  (init-new-game-log)
   
   ;; Serve static files explicitly
   (push (hunchentoot:create-static-file-dispatcher-and-handler 
