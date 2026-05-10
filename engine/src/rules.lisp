@@ -29,15 +29,16 @@
     
     (labels ((add-move (nx ny)
              (when (in-bounds nx ny)
-               (let ((target (make-sq nx ny)))
-                 (let ((p (get-piece state target)))
-                   (if p
+               (let* ((target (make-sq nx ny))
+                      (p (get-piece state target)))
+                 (if p
+                     (progn
                        (when (enemy-p piece p)
-                         (push target moves)
-                         t)
-                       (progn
-                         (push target moves)
-                         nil))))))
+                         (push target moves))
+                       t) ; Stop ray if any piece is hit
+                     (progn
+                       (push target moves)
+                       nil))))) ; Continue ray if square is empty
            (ray (dx dy)
              (loop for nx = (+ x dx) then (+ nx dx)
                    for ny = (+ y dy) then (+ ny dy)

@@ -36,7 +36,8 @@ const resetBtn = document.getElementById('reset-btn');
 const undoBtn = document.getElementById('undo-btn');
 const whiteScoreEl = document.getElementById('white-score');
 const blackScoreEl = document.getElementById('black-score');
-const modeBtn = document.getElementById('mode-btn');
+// dropdown for mode selection
+const modeSelect = document.getElementById('mode-select');
 const whitePalette = document.getElementById('white-palette');
 const blackPalette = document.getElementById('black-palette');
 const playerInfos = document.querySelectorAll('.player-info');
@@ -55,11 +56,11 @@ function applyMode(mode) {
 }
 
 // Toggle mode on button click
-modeBtn.addEventListener('click', async () => {
-  const newMode = modeBtn.textContent.trim().toLowerCase() === 'game mode' ? 'explore' : 'game';
+modeSelect.addEventListener('change', async () => {
+  const newMode = modeSelect.value; // 'game' or 'explore'
   await fetch(`${API_BASE}/set-mode?mode=${newMode}`, {method: 'POST'});
-  // update button label
-  modeBtn.textContent = newMode === 'game' ? 'Game Mode' : 'Explore Mode';
+  // keep dropdown in sync (value already set)
+  currentMode = newMode;
   applyMode(newMode);
   fetchState();
 });
@@ -68,13 +69,22 @@ async function fetchState() {
   try {
     const res = await fetch(`${API_BASE}/state`);
     gameState = await res.json();
+    // keep UI mode in sync with server response
+    if (gameState.mode && gameState.mode !== currentMode) {
+      currentMode = gameState.mode;
+      modeSelect.value = currentMode;
+      applyMode(currentMode);
+    }
     renderBoard();
     updateStatus();
+    updateCaptured();
   } catch (err) {
     console.error('Failed to fetch state', err);
     statusEl.textContent = 'Server offline';
   }
 }
+
+
 
 async function fetchLegalMoves(sq) {
   try {
@@ -140,7 +150,6 @@ function updateStatus() {
   if (!gameState) return;
   const status = gameState.status || 'active';
   const color = gameState.activeColor === 'white' ? 'White' : 'Black';
-  
   if (status === 'checkmate') {
     statusEl.innerHTML = `<strong style="color: #ff4757">Checkmate! ${color === 'White' ? 'Black' : 'White'} wins!</strong>`;
   } else if (status === 'stalemate') {
@@ -148,38 +157,68 @@ function updateStatus() {
   } else if (status === 'check') {
     statusEl.innerHTML = `${color} to move <strong style="color: #ff4757">(Check!)</strong>`;
   } else {
-    statusEl.textContent = `${color} to move`;
-  }
-  
-  if (gameState.material) {
-    let wScore = 0;
-    let bScore = 0;
-    let whiteMissing = '';
-    let blackMissing = '';
-    
-    for (const [pieceKey, initialCount] of Object.entries(INITIAL_COUNTS)) {
-      const currentCount = gameState.material[pieceKey] || 0;
-      const parts = pieceKey.split('-');
-      const pColor = parts[0];
-      const pType = parts[1];
-      const val = PIECE_VALUES[pType] * currentCount;
-      
-      if (pColor === 'white') wScore += val;
-      else bScore += val;
-      
-      const missingCount = initialCount - currentCount;
-      if (missingCount > 0) {
-        const emoji = EMOJIS[pieceKey];
-        if (pColor === 'white') blackMissing += emoji.repeat(missingCount);
-        else whiteMissing += emoji.repeat(missingCount);
-      }
-    }
-    
-    const diff = wScore - bScore;
-    whiteScoreEl.innerHTML = `<span style="font-size: 1.2rem; margin-right: 5px;">${whiteMissing}</span> <span style="color: #94a3b8">${diff > 0 ? `+${diff}` : ''}</span>`;
-    blackScoreEl.innerHTML = `<span style="font-size: 1.2rem; margin-right: 5px;">${blackMissing}</span> <span style="color: #94a3b8">${diff < 0 ? `+${Math.abs(diff)}` : ''}</span>`;
+    statusEl.innerHTML = `${color} to move`;
   }
 }
+
+// Update captured piece display for game mode
+function updateCaptured() {
+  if (!gameState) return;
+  const material = gameState.material || {};
+  const counts = {};
+  
+  // material may be an array of [key, value] pairs or an object
+  if (Array.isArray(material)) {
+    material.forEach(pair => {
+      const key = typeof pair[0] === 'string' ? pair[0].toLowerCase() : '';
+      const val = pair[1];
+      counts[key] = val;
+    });
+  } else {
+    Object.entries(material).forEach(([k, v]) => {
+      counts[k.toLowerCase()] = v;
+    });
+  }
+
+  if (currentMode !== 'game') {
+    whiteScoreEl.innerHTML = '';
+    blackScoreEl.innerHTML = '';
+    return;
+  }
+
+  let wScoreTotal = 0;
+  let bScoreTotal = 0;
+  let whiteMissing = ''; // pieces captured by Black (shown at top)
+  let blackMissing = ''; // pieces captured by White (shown at bottom)
+
+  for (const [pieceKey, initialCount] of Object.entries(INITIAL_COUNTS)) {
+    const currentCount = counts[pieceKey] || 0;
+    const parts = pieceKey.split('-');
+    const pColor = parts[0];
+    const pType = parts[1];
+    const val = PIECE_VALUES[pType] * currentCount;
+
+    if (pColor === 'white') wScoreTotal += val;
+    else bScoreTotal += val;
+
+    const missingCount = initialCount - currentCount;
+    if (missingCount > 0) {
+      const emoji = EMOJIS[pieceKey];
+      if (pColor === 'white') {
+        whiteMissing += emoji.repeat(missingCount);
+      } else {
+        blackMissing += emoji.repeat(missingCount);
+      }
+    }
+  }
+
+  const diff = wScoreTotal - bScoreTotal;
+  // Top panel (Black) shows white pieces captured by Black
+  blackScoreEl.innerHTML = `<span style="font-size: 1.2rem; margin-right: 5px;">${whiteMissing}</span> <span style="color: #94a3b8">${diff < 0 ? `+${Math.abs(diff)}` : ''}</span>`;
+  // Bottom panel (White) shows black pieces captured by White
+  whiteScoreEl.innerHTML = `<span style="font-size: 1.2rem; margin-right: 5px;">${blackMissing}</span> <span style="color: #94a3b8">${diff > 0 ? `+${diff}` : ''}</span>`;
+}
+
 
 function renderBoard() {
   boardEl.innerHTML = '';
