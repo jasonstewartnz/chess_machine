@@ -2,6 +2,7 @@
 
 (defvar *acceptor* nil)
 (defvar *current-state* (initial-board))
+(defvar *state-history* nil)
 
 (defun handle-cors ()
   (setf (hunchentoot:header-out "Access-Control-Allow-Origin") "*")
@@ -32,8 +33,10 @@
         (if is-legal
             (let ((san (move-to-san *current-state* from-sq to-sq))
                   (active (game-state-active-color *current-state*))
-                  (fullmove (game-state-fullmove *current-state*)))
+                  (fullmove (game-state-fullmove *current-state*))
+                  (old-state (copy-state *current-state*)))
               (make-move *current-state* from-sq to-sq)
+              (push old-state *state-history*)
               (append-move-to-log san active fullmove)
               (let ((state-alist (game-state-to-alist *current-state*)))
                 (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
@@ -49,10 +52,24 @@
   (when (eq (hunchentoot:request-method*) :options)
     (return-from reset-handler ""))
   (setf *current-state* (initial-board))
+  (setf *state-history* nil)
   (init-new-game-log)
   (let ((state-alist (game-state-to-alist *current-state*)))
     (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
     (cl-json:encode-json-to-string state-alist)))
+
+(hunchentoot:define-easy-handler (undo-handler :uri "/undo") ()
+  (handle-cors)
+  (setf (hunchentoot:content-type*) "application/json")
+  (when (eq (hunchentoot:request-method*) :options)
+    (return-from undo-handler ""))
+  
+  (when *state-history*
+    (setf *current-state* (pop *state-history*)))
+    
+  (let ((state-alist (game-state-to-alist *current-state*)))
+    (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
+    (cl-json:encode-json-to-string `((:success . t) (:state . ,state-alist)))))
 
 (hunchentoot:define-easy-handler (legal-moves-handler :uri "/legal-moves") (sq)
   (handle-cors)

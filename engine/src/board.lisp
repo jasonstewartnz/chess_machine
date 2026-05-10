@@ -81,7 +81,21 @@
   "Returns the initial game state."
   (parse-fen *initial-fen*))
 
-;; For JSON serialization later
+(defun get-piece-counts (state)
+  (let ((counts (make-hash-table :test 'equal)))
+    (loop for i from 0 to 63
+          for p = (get-piece state i)
+          do (when p
+               (let ((key (format nil "~A-~A" 
+                                  (string-downcase (symbol-name (piece-color p)))
+                                  (string-downcase (symbol-name (piece-type p))))))
+                 (incf (gethash key counts 0)))))
+    (let ((alist nil))
+      (maphash (lambda (k v) 
+                 (push (cons (intern (string-upcase k) :keyword) v) alist)) 
+               counts)
+      alist)))
+
 (defun piece-to-alist (piece)
   (if piece
       `((:color . ,(string-downcase (symbol-name (piece-color piece))))
@@ -96,4 +110,5 @@
       (:castling . ,(mapcar (lambda (k) (symbol-name k)) (game-state-castling state)))
       (:en-passant . ,(game-state-en-passant state))
       (:halfmove . ,(game-state-halfmove state))
-      (:fullmove . ,(game-state-fullmove state)))))
+      (:fullmove . ,(game-state-fullmove state))
+      (:material . ,(get-piece-counts state)))))

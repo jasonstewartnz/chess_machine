@@ -15,6 +15,16 @@ const PIECE_IMAGES = {
   'black-pawn': 'https://upload.wikimedia.org/wikipedia/commons/c/c7/Chess_pdt45.svg',
 };
 
+const PIECE_VALUES = { 'pawn': 1, 'knight': 3, 'bishop': 3, 'rook': 5, 'queen': 9, 'king': 0 };
+const INITIAL_COUNTS = {
+  'white-pawn': 8, 'white-knight': 2, 'white-bishop': 2, 'white-rook': 2, 'white-queen': 1,
+  'black-pawn': 8, 'black-knight': 2, 'black-bishop': 2, 'black-rook': 2, 'black-queen': 1
+};
+const EMOJIS = {
+  'white-pawn': '♙', 'white-knight': '♘', 'white-bishop': '♗', 'white-rook': '♖', 'white-queen': '♕',
+  'black-pawn': '♟', 'black-knight': '♞', 'black-bishop': '♝', 'black-rook': '♜', 'black-queen': '♛'
+};
+
 let gameState = null;
 let selectedSquare = null;
 let legalMoves = [];
@@ -22,6 +32,9 @@ let legalMoves = [];
 const boardEl = document.getElementById('chessboard');
 const statusEl = document.getElementById('status-indicator');
 const resetBtn = document.getElementById('reset-btn');
+const undoBtn = document.getElementById('undo-btn');
+const whiteScoreEl = document.getElementById('white-score');
+const blackScoreEl = document.getElementById('black-score');
 
 async function fetchState() {
   try {
@@ -79,6 +92,22 @@ async function resetGame() {
   }
 }
 
+async function undoGame() {
+  try {
+    const res = await fetch(`${API_BASE}/undo`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      gameState = data.state;
+      selectedSquare = null;
+      legalMoves = [];
+      renderBoard();
+      updateStatus();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 function updateStatus() {
   if (!gameState) return;
   const status = gameState.status || 'active';
@@ -92,6 +121,35 @@ function updateStatus() {
     statusEl.innerHTML = `${color} to move <strong style="color: #ff4757">(Check!)</strong>`;
   } else {
     statusEl.textContent = `${color} to move`;
+  }
+  
+  if (gameState.material) {
+    let wScore = 0;
+    let bScore = 0;
+    let whiteMissing = '';
+    let blackMissing = '';
+    
+    for (const [pieceKey, initialCount] of Object.entries(INITIAL_COUNTS)) {
+      const currentCount = gameState.material[pieceKey] || 0;
+      const parts = pieceKey.split('-');
+      const pColor = parts[0];
+      const pType = parts[1];
+      const val = PIECE_VALUES[pType] * currentCount;
+      
+      if (pColor === 'white') wScore += val;
+      else bScore += val;
+      
+      const missingCount = initialCount - currentCount;
+      if (missingCount > 0) {
+        const emoji = EMOJIS[pieceKey];
+        if (pColor === 'white') blackMissing += emoji.repeat(missingCount);
+        else whiteMissing += emoji.repeat(missingCount);
+      }
+    }
+    
+    const diff = wScore - bScore;
+    whiteScoreEl.innerHTML = `<span style="font-size: 1.2rem; margin-right: 5px;">${whiteMissing}</span> <span style="color: #94a3b8">${diff > 0 ? `+${diff}` : ''}</span>`;
+    blackScoreEl.innerHTML = `<span style="font-size: 1.2rem; margin-right: 5px;">${blackMissing}</span> <span style="color: #94a3b8">${diff < 0 ? `+${Math.abs(diff)}` : ''}</span>`;
   }
 }
 
@@ -168,4 +226,5 @@ function renderBoard() {
 }
 
 resetBtn.addEventListener('click', resetGame);
+undoBtn.addEventListener('click', undoGame);
 fetchState();

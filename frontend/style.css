@@ -89,8 +89,31 @@ header p {
 
 .board-container {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 1rem;
+}
+
+.player-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+  padding: 0.5rem 1rem;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+}
+
+.player-name {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.score-display {
+  font-size: 1rem;
+  color: var(--text-main);
 }
 
 .chessboard {
@@ -169,6 +192,8 @@ header p {
   border-radius: 8px;
   text-align: center;
 }
+
+
 
 .moves-history {
   flex: 1;
