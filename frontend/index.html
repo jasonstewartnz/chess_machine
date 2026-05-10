@@ -14,8 +14,12 @@
       <p>Lisp Backend &bull; Vanilla JS Frontend</p>
       <div class="controls">
         <button id="reset-btn" class="glass-btn">New Game</button>
-        <button id="undo-btn" class="glass-btn">Undo Move</button>
-        <select id="mode-select" class="glass-btn"><option value="game">Game Mode</option><option value="explore">Explore Mode</option></select>
+        <button id="undo-btn" class="glass-btn">Undo</button>
+        <button id="clear-board-btn" class="glass-btn explore-only" style="display: none;">Clear Board</button>
+        <select id="mode-select" class="glass-btn">
+          <option value="game">Game Mode</option>
+          <option value="explore">Explore Mode</option>
+        </select>
       </div>
     </header>
     
@@ -41,6 +45,15 @@
 
       <div class="moves-history" id="moves-history">
         <!-- Move history -->
+      </div>
+
+      <div class="fen-container">
+        <h3>Position (FEN)</h3>
+        <input type="text" id="fen-input" class="glass-input" placeholder="FEN string...">
+        <div class="fen-controls">
+          <button id="copy-fen-btn" class="glass-btn small">Copy</button>
+          <button id="load-fen-btn" class="glass-btn small">Load</button>
+        </div>
       </div>
     </aside>
   </div>

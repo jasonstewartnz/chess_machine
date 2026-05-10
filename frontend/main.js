@@ -29,6 +29,7 @@ let gameState = null;
 let selectedSquare = null;
 let legalMoves = [];
 let currentMode = 'game';
+let selectedPalettePiece = null; // {color, type}
 
 const boardEl = document.getElementById('chessboard');
 const statusEl = document.getElementById('status-indicator');
@@ -41,6 +42,12 @@ const modeSelect = document.getElementById('mode-select');
 const whitePalette = document.getElementById('white-palette');
 const blackPalette = document.getElementById('black-palette');
 const playerInfos = document.querySelectorAll('.player-info');
+const fenInput = document.getElementById('fen-input');
+const copyFenBtn = document.getElementById('copy-fen-btn');
+const loadFenBtn = document.getElementById('load-fen-btn');
+const clearBoardBtn = document.getElementById('clear-board-btn');
+
+let draggedPiece = null; // {source: 'board'|'palette', sq: number, color: string, type: string}
 
 // Show/hide explore UI elements
 function applyMode(mode) {
@@ -53,7 +60,56 @@ function applyMode(mode) {
     const score = info.querySelector('.score-display');
     if (score) score.style.display = explore ? 'none' : 'inline';
   });
+  
+  clearBoardBtn.style.display = explore ? 'inline-block' : 'none';
+  
+  if (!explore) {
+    selectedPalettePiece = null;
+    renderPalettes();
+  }
 }
+
+function renderPalettes() {
+  whitePalette.innerHTML = '';
+  blackPalette.innerHTML = '';
+  
+  const types = ['pawn', 'knight', 'bishop', 'rook', 'queen', 'king'];
+  
+  ['white', 'black'].forEach(color => {
+    const container = color === 'white' ? whitePalette : blackPalette;
+    types.forEach(type => {
+      const btn = document.createElement('div');
+      btn.className = 'palette-piece';
+      if (selectedPalettePiece && selectedPalettePiece.color === color && selectedPalettePiece.type === type) {
+        btn.classList.add('selected');
+      }
+      
+      const img = document.createElement('img');
+      img.src = PIECE_IMAGES[`${color}-${type}`];
+      btn.appendChild(img);
+      
+      btn.draggable = true;
+      btn.addEventListener('dragstart', () => {
+        draggedPiece = { source: 'palette', color, type };
+        btn.classList.add('dragging');
+      });
+      btn.addEventListener('dragend', () => {
+        btn.classList.remove('dragging');
+      });
+
+      btn.onclick = () => {
+        if (selectedPalettePiece && selectedPalettePiece.color === color && selectedPalettePiece.type === type) {
+          selectedPalettePiece = null;
+        } else {
+          selectedPalettePiece = { color, type };
+        }
+        renderPalettes();
+      };
+      container.appendChild(btn);
+    });
+  });
+}
+renderPalettes();
 
 // Toggle mode on button click
 modeSelect.addEventListener('change', async () => {
@@ -78,6 +134,9 @@ async function fetchState() {
     renderBoard();
     updateStatus();
     updateCaptured();
+    if (gameState.fen) {
+      fenInput.value = gameState.fen;
+    }
   } catch (err) {
     console.error('Failed to fetch state', err);
     statusEl.textContent = 'Server offline';
@@ -111,10 +170,20 @@ async function makeMove(from, to) {
       legalMoves = [];
       renderBoard();
       updateStatus();
+      updateCaptured();
     }
   } catch (err) {
     console.error(err);
   }
+}
+
+async function movePieceExplore(from, to) {
+  const piece = gameState.board[from];
+  if (!piece) return;
+  // sequence: remove from old, place in new
+  await fetch(`${API_BASE}/remove-piece?sq=${from}`, { method: 'POST' });
+  await fetch(`${API_BASE}/place-piece?sq=${to}&color=${piece.color}&type=${piece.type}`, { method: 'POST' });
+  fetchState();
 }
 
 async function resetGame() {
@@ -140,6 +209,42 @@ async function undoGame() {
       legalMoves = [];
       renderBoard();
       updateStatus();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function placePiece(sq, color, type) {
+  try {
+    const res = await fetch(`${API_BASE}/place-piece?sq=${sq}&color=${color}&type=${type}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      fetchState();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function removePiece(sq) {
+  try {
+    const res = await fetch(`${API_BASE}/remove-piece?sq=${sq}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      fetchState();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function clearBoard() {
+  try {
+    const res = await fetch(`${API_BASE}/clear-board`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      fetchState();
     }
   } catch (err) {
     console.error(err);
@@ -240,41 +345,75 @@ function renderBoard() {
     const piece = gameState.board[i];
     if (piece) {
       const pEl = document.createElement('div');
-      pEl.className = 'piece';
       const pieceKey = `${piece.color}-${piece.type}`;
+      pEl.className = `piece ${pieceKey}`;
       pEl.style.backgroundImage = `url(${PIECE_IMAGES[pieceKey]})`;
-      pEl.draggable = true;
+      
+      // Cursor & Turn enforcement
+      const isTurn = currentMode === 'explore' || piece.color === (gameState.activeColor || 'white');
+      pEl.style.cursor = isTurn ? 'grab' : 'default';
+      pEl.draggable = isTurn;
       
       pEl.addEventListener('dragstart', (e) => {
-        selectedSquare = i;
-        fetchLegalMoves(i);
+        draggedPiece = { source: 'board', sq: i, color: piece.color, type: piece.type };
         e.dataTransfer.setData('text/plain', i);
+        selectedSquare = i;
+        if (currentMode === 'game') fetchLegalMoves(i);
         setTimeout(() => pEl.classList.add('dragging'), 0);
       });
 
       pEl.addEventListener('dragend', () => {
         pEl.classList.remove('dragging');
+        sqEl.classList.remove('drag-over');
       });
 
       sqEl.appendChild(pEl);
     }
 
-    sqEl.addEventListener('dragover', (e) => e.preventDefault());
+    // Square Drop Handling
+    sqEl.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      sqEl.classList.add('drag-over');
+    });
+
+    sqEl.addEventListener('dragleave', () => {
+      sqEl.classList.remove('drag-over');
+    });
+
     sqEl.addEventListener('drop', (e) => {
       e.preventDefault();
-      const fromSq = parseInt(e.dataTransfer.getData('text/plain'));
-      if (fromSq !== i && legalMoves.includes(i)) {
-        makeMove(fromSq, i);
-      } else {
-        selectedSquare = null;
-        legalMoves = [];
-        renderBoard();
+      sqEl.classList.remove('drag-over');
+      if (!draggedPiece) return;
+
+      if (draggedPiece.source === 'palette') {
+        placePiece(i, draggedPiece.color, draggedPiece.type);
+      } else if (draggedPiece.source === 'board') {
+        if (currentMode === 'explore') {
+          movePieceExplore(draggedPiece.sq, i);
+        } else {
+          makeMove(draggedPiece.sq, i);
+        }
       }
+      draggedPiece = null;
     });
 
     // Click support
     sqEl.addEventListener('click', () => {
-      if (selectedSquare === null && piece) {
+      if (currentMode === 'explore' && selectedPalettePiece) {
+        placePiece(i, selectedPalettePiece.color, selectedPalettePiece.type);
+        return;
+      }
+
+      if (currentMode === 'explore' && !selectedPalettePiece && gameState.board[i]) {
+        removePiece(i);
+        return;
+      }
+
+      if (selectedSquare === i) {
+        selectedSquare = null;
+        legalMoves = [];
+        renderBoard();
+      } else if (gameState && gameState.board[i] && gameState.board[i].color === (gameState.activeColor || 'white')) {
         selectedSquare = i;
         fetchLegalMoves(i);
       } else if (selectedSquare !== null) {
@@ -294,4 +433,48 @@ function renderBoard() {
 
 resetBtn.addEventListener('click', resetGame);
 undoBtn.addEventListener('click', undoGame);
+clearBoardBtn.addEventListener('click', clearBoard);
+
+// Drag OFF board to remove (Explore mode)
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => {
+  if (currentMode === 'explore' && draggedPiece && draggedPiece.source === 'board') {
+    // If we dropped on something that isn't a square, remove it
+    if (!e.target.closest('.square')) {
+      removePiece(draggedPiece.sq);
+    }
+  }
+  draggedPiece = null;
+});
+
+copyFenBtn.addEventListener('click', () => {
+  fenInput.select();
+  document.execCommand('copy');
+  const originalText = copyFenBtn.textContent;
+  copyFenBtn.textContent = 'Copied!';
+  setTimeout(() => copyFenBtn.textContent = originalText, 2000);
+});
+
+loadFenBtn.addEventListener('click', async () => {
+  const fen = fenInput.value.trim();
+  if (!fen) return;
+  try {
+    const res = await fetch(`${API_BASE}/load-fen?fen=${encodeURIComponent(fen)}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      gameState = data.state;
+      selectedSquare = null;
+      legalMoves = [];
+      renderBoard();
+      updateStatus();
+      updateCaptured();
+    } else {
+      alert('Invalid FEN');
+    }
+  } catch (err) {
+    console.error(err);
+  }
+});
+
 fetchState();
+applyMode(currentMode);

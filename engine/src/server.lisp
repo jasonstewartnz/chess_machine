@@ -136,6 +136,20 @@
       (cl-json:encode-json-to-string '((:error . "Not in explore mode")))))
 
 
+(hunchentoot:define-easy-handler (load-fen-handler :uri "/load-fen") (fen)
+  (handle-cors)
+  (setf (hunchentoot:content-type*) "application/json")
+  (when (eq (hunchentoot:request-method*) :options)
+    (return-from load-fen-handler ""))
+  (if fen
+      (progn
+        (setf *current-state* (parse-fen fen))
+        (setf *state-history* nil)
+        (let ((state-alist (game-state-to-alist *current-state*)))
+          (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
+          (cl-json:encode-json-to-string `((:success . t) (:state . ,state-alist)))))
+      (cl-json:encode-json-to-string '((:error . "Missing fen parameter")))))
+
 (hunchentoot:define-easy-handler (legal-moves-handler :uri "/legal-moves") (sq)
   (handle-cors)
   (setf (hunchentoot:content-type*) "application/json")

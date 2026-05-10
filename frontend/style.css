@@ -203,3 +203,85 @@ header p {
   padding: 1rem;
   font-family: monospace;
 }
+
+/* FEN UI */
+.fen-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+}
+
+.fen-container h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.fen-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.glass-btn.small {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+/* Piece Palettes */
+.piece-palette {
+  display: none; /* Hidden by default, shown in Explore Mode */
+  flex-direction: row;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  justify-content: center;
+  width: 100%;
+  max-width: 600px;
+}
+
+.palette-piece {
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.palette-piece:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.palette-piece.selected {
+  background: var(--highlight);
+  border-color: var(--accent);
+}
+
+.palette-piece img {
+  width: 85%;
+  height: 85%;
+}
+
+.square.drag-over {
+  background-color: var(--highlight) !important;
+  box-shadow: inset 0 0 10px var(--accent);
+}

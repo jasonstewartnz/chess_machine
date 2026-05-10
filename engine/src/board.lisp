@@ -94,7 +94,7 @@
                  (incf (gethash key counts 0)))))
     (let ((alist nil))
       (maphash (lambda (k v) 
-                 (push (cons (intern (string-upcase k) :keyword) v) alist)) 
+                 (push (cons k v) alist)) 
                counts)
       alist)))
 
@@ -103,6 +103,54 @@
       `((:color . ,(string-downcase (symbol-name (piece-color piece))))
         (:type . ,(string-downcase (symbol-name (piece-type piece)))))
       nil))
+
+(defun generate-fen (state)
+  "Generate a FEN string from a GAME-STATE."
+  (let ((board (game-state-board state)))
+    (with-output-to-string (s)
+      ;; 1. Piece placement
+      (loop for y from 0 to 7
+            do (let ((empty 0))
+                 (loop for x from 0 to 7
+                       for sq = (make-sq x y)
+                       for p = (aref board sq)
+                       do (if p
+                              (progn
+                                (when (> empty 0) (princ empty s) (setf empty 0))
+                                (let ((char (case (piece-type p)
+                                              (:pawn #\p)
+                                              (:knight #\n)
+                                              (:bishop #\b)
+                                              (:rook #\r)
+                                              (:queen #\q)
+                                              (:king #\k))))
+                                  (princ (if (eq (piece-color p) :white)
+                                             (char-upcase char)
+                                             char)
+                                         s)))
+                              (incf empty)))
+                 (when (> empty 0) (princ empty s))
+                 (when (< y 7) (princ #\/ s))))
+      
+      ;; 2. Active color
+      (format s " ~A" (if (eq (game-state-active-color state) :white) "w" "b"))
+      
+      ;; 3. Castling
+      (let ((c (game-state-castling state)))
+        (format s " ")
+        (if (null c)
+            (princ "-" s)
+            (progn
+              (when (member :K c) (princ "K" s))
+              (when (member :Q c) (princ "Q" s))
+              (when (member :|k| c) (princ "k" s))
+              (when (member :|q| c) (princ "q" s)))))
+      
+      ;; 4. En passant
+      (format s " ~A" (or (game-state-en-passant state) "-"))
+      
+      ;; 5. Halfmove and Fullmove
+      (format s " ~A ~A" (game-state-halfmove state) (game-state-fullmove state)))))
 
 (defun game-state-to-alist (state)
   (let ((board-list (loop for i from 0 to 63
@@ -114,4 +162,5 @@
       (:halfmove . ,(game-state-halfmove state))
       (:fullmove . ,(game-state-fullmove state))
       (:material . ,(get-piece-counts state))
-      (:mode . ,(string-downcase (symbol-name *game-mode*))))))
+      (:mode . ,(string-downcase (symbol-name *game-mode*)))
+      (:fen . ,(generate-fen state)))))
