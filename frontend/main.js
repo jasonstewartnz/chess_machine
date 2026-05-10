@@ -186,6 +186,8 @@ async function movePieceExplore(from, to) {
   const oldBoard = [...gameState.board];
   gameState.board[to] = piece;
   gameState.board[from] = null;
+  selectedSquare = null;
+  legalMoves = [];
   renderBoard();
 
   try {
@@ -418,6 +420,8 @@ function renderBoard() {
         }
       }
       draggedPiece = null;
+      selectedSquare = null;
+      legalMoves = [];
     });
 
     // Click support

@@ -77,9 +77,7 @@
   (when (eq (hunchentoot:request-method*) :options)
     (return-from set-mode-handler ""))
   (cond ((string= mode "game")
-         (setf *game-mode* :game)
-         (setf *current-state* (initial-board))
-         (setf *state-history* nil))
+         (setf *game-mode* :game))
         ((string= mode "explore")
          (setf *game-mode* :explore))
         (t (return-from set-mode-handler
