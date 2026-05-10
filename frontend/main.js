@@ -28,6 +28,7 @@ const EMOJIS = {
 let gameState = null;
 let selectedSquare = null;
 let legalMoves = [];
+let currentMode = 'game';
 
 const boardEl = document.getElementById('chessboard');
 const statusEl = document.getElementById('status-indicator');
