@@ -27,7 +27,7 @@
          (moves nil)
          (dir (if (eq color :white) -1 1)))
     
-    (flet ((add-move (nx ny)
+    (labels ((add-move (nx ny)
              (when (in-bounds nx ny)
                (let ((target (make-sq nx ny)))
                  (let ((p (get-piece state target)))

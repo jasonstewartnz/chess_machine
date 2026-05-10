@@ -50,9 +50,9 @@
   (handle-cors)
   (setf (hunchentoot:content-type*) "application/json")
   (if sq
-      (let* ((square (parse-integer sq))
-             (moves (legal-moves *current-state* square)))
-        (cl-json:encode-json-to-string `((:moves . ,moves))))
+      (let* ((sq-num (parse-integer sq))
+             (moves (legal-moves *current-state* sq-num)))
+        (cl-json:encode-json-to-string `((:success . t) (:moves . ,moves))))
       (cl-json:encode-json-to-string '((:error . "Missing sq parameter")))))
 
 (defun start-server (&key (port 8080))
