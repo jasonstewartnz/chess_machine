@@ -187,16 +187,19 @@
     new-state))
 
 (defun legal-moves (state sq)
-  "Returns all legal moves for the piece at SQ, filtering out moves that result in self-check."
+  "Returns all legal moves for the piece at SQ, filtering out moves that result in self-check. Enforces turn order in :game mode."
   (let* ((piece (get-piece state sq))
-         (color (piece-color piece))
-         (pseudo (pseudo-legal-moves state sq))
-         (legal nil))
-    (loop for to in pseudo
-          do (let ((test-state (make-test-move state sq to)))
-               (unless (in-check-p test-state color)
-                 (push to legal))))
-    legal))
+         (color (piece-color piece)))
+    (if (and (eq *game-mode* :game)
+             (not (eq color (game-state-active-color state))))
+        nil
+        (let* ((pseudo (pseudo-legal-moves state sq))
+               (legal nil))
+          (loop for to in pseudo
+                do (let ((test-state (make-test-move state sq to)))
+                     (unless (in-check-p test-state color)
+                       (push to legal))))
+          legal))))
 
 (defun make-move (state from to)
   "Execute a move on the game state if it is legal."

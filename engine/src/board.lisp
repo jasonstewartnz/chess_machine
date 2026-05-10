@@ -12,6 +12,8 @@
   (halfmove 0)
   (fullmove 1))
 
+(defvar *game-mode* :game)
+
 (defun copy-state (state)
   "Create a copy of the game state, including a new board array."
   (let ((new-state (copy-game-state state)))
@@ -111,4 +113,5 @@
       (:en-passant . ,(game-state-en-passant state))
       (:halfmove . ,(game-state-halfmove state))
       (:fullmove . ,(game-state-fullmove state))
-      (:material . ,(get-piece-counts state)))))
+      (:material . ,(get-piece-counts state))
+      (:mode . ,(string-downcase (symbol-name *game-mode*))))))

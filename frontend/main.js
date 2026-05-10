@@ -35,6 +35,10 @@ const resetBtn = document.getElementById('reset-btn');
 const undoBtn = document.getElementById('undo-btn');
 const whiteScoreEl = document.getElementById('white-score');
 const blackScoreEl = document.getElementById('black-score');
+const modeSelect = document.getElementById('mode-select');
+const whitePalette = document.getElementById('white-palette');
+const blackPalette = document.getElementById('black-palette');
+const playerInfos = document.querySelectorAll('.player-info');
 
 async function fetchState() {
   try {
