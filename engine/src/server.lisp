@@ -136,6 +136,22 @@
       (cl-json:encode-json-to-string '((:error . "Not in explore mode")))))
 
 
+(hunchentoot:define-easy-handler (move-piece-explore-handler :uri "/move-piece-explore") (from to)
+  (handle-cors)
+  (setf (hunchentoot:content-type*) "application/json")
+  (when (eq (hunchentoot:request-method*) :options)
+    (return-from move-piece-explore-handler ""))
+  (if (and from to)
+      (let ((from-sq (parse-integer from))
+            (to-sq (parse-integer to)))
+        (if (and (eq *game-mode* :explore) (>= from-sq 0) (< from-sq 64) (>= to-sq 0) (< to-sq 64))
+            (let ((piece (aref (game-state-board *current-state*) from-sq)))
+              (setf (aref (game-state-board *current-state*) from-sq) nil)
+              (setf (aref (game-state-board *current-state*) to-sq) piece)
+              (cl-json:encode-json-to-string '((:success . t))))
+            (cl-json:encode-json-to-string '((:error . "Not in explore mode or out of bounds")))))
+      (cl-json:encode-json-to-string '((:error . "Missing from or to parameters")))))
+
 (hunchentoot:define-easy-handler (load-fen-handler :uri "/load-fen") (fen)
   (handle-cors)
   (setf (hunchentoot:content-type*) "application/json")

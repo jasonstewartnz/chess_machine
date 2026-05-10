@@ -89,8 +89,9 @@ function renderPalettes() {
       btn.appendChild(img);
       
       btn.draggable = true;
-      btn.addEventListener('dragstart', () => {
+      btn.addEventListener('dragstart', (e) => {
         draggedPiece = { source: 'palette', color, type };
+        e.dataTransfer.setData('text/plain', ''); // Required for some browsers
         btn.classList.add('dragging');
       });
       btn.addEventListener('dragend', () => {
@@ -123,7 +124,7 @@ modeSelect.addEventListener('change', async () => {
 
 async function fetchState() {
   try {
-    const res = await fetch(`${API_BASE}/state`);
+    const res = await fetch(`${API_BASE}/state?t=${Date.now()}`);
     gameState = await res.json();
     // keep UI mode in sync with server response
     if (gameState.mode && gameState.mode !== currentMode) {
@@ -180,10 +181,24 @@ async function makeMove(from, to) {
 async function movePieceExplore(from, to) {
   const piece = gameState.board[from];
   if (!piece) return;
-  // sequence: remove from old, place in new
-  await fetch(`${API_BASE}/remove-piece?sq=${from}`, { method: 'POST' });
-  await fetch(`${API_BASE}/place-piece?sq=${to}&color=${piece.color}&type=${piece.type}`, { method: 'POST' });
-  fetchState();
+  
+  // Optimistic update
+  const oldBoard = [...gameState.board];
+  gameState.board[to] = piece;
+  gameState.board[from] = null;
+  renderBoard();
+
+  try {
+    const res = await fetch(`${API_BASE}/move-piece-explore?from=${from}&to=${to}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      fetchState();
+    }
+  } catch (err) {
+    gameState.board = oldBoard;
+    renderBoard();
+    console.error(err);
+  }
 }
 
 async function resetGame() {
@@ -216,6 +231,11 @@ async function undoGame() {
 }
 
 async function placePiece(sq, color, type) {
+  // Optimistic update
+  const oldBoard = [...gameState.board];
+  gameState.board[sq] = { color, type };
+  renderBoard();
+
   try {
     const res = await fetch(`${API_BASE}/place-piece?sq=${sq}&color=${color}&type=${type}`, { method: 'POST' });
     const data = await res.json();
@@ -223,6 +243,8 @@ async function placePiece(sq, color, type) {
       fetchState();
     }
   } catch (err) {
+    gameState.board = oldBoard;
+    renderBoard();
     console.error(err);
   }
 }
@@ -382,6 +404,7 @@ function renderBoard() {
 
     sqEl.addEventListener('drop', (e) => {
       e.preventDefault();
+      e.stopPropagation(); // Prevent the document-level removal listener from firing
       sqEl.classList.remove('drag-over');
       if (!draggedPiece) return;
 
