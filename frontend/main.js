@@ -110,7 +110,29 @@ function renderPalettes() {
     });
   });
 }
+function renderCoordinates() {
+  const ranksCoord = document.getElementById('ranks-coord');
+  const filesCoord = document.getElementById('files-coord');
+  
+  ranksCoord.innerHTML = '';
+  filesCoord.innerHTML = '';
+  
+  for (let r = 8; r >= 1; r--) {
+    const el = document.createElement('div');
+    el.textContent = r;
+    ranksCoord.appendChild(el);
+  }
+  
+  const files = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  files.forEach(f => {
+    const el = document.createElement('div');
+    el.textContent = f;
+    filesCoord.appendChild(el);
+  });
+}
+
 renderPalettes();
+renderCoordinates();
 
 // Toggle mode on button click
 modeSelect.addEventListener('change', async () => {
