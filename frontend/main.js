@@ -35,10 +35,33 @@ const resetBtn = document.getElementById('reset-btn');
 const undoBtn = document.getElementById('undo-btn');
 const whiteScoreEl = document.getElementById('white-score');
 const blackScoreEl = document.getElementById('black-score');
-const modeSelect = document.getElementById('mode-select');
+const modeBtn = document.getElementById('mode-btn');
 const whitePalette = document.getElementById('white-palette');
 const blackPalette = document.getElementById('black-palette');
 const playerInfos = document.querySelectorAll('.player-info');
+
+// Show/hide explore UI elements
+function applyMode(mode) {
+  const explore = mode === 'explore';
+  // palettes
+  whitePalette.style.display = explore ? 'flex' : 'none';
+  blackPalette.style.display = explore ? 'flex' : 'none';
+  // hide scores in explore mode
+  playerInfos.forEach(info => {
+    const score = info.querySelector('.score-display');
+    if (score) score.style.display = explore ? 'none' : 'inline';
+  });
+}
+
+// Toggle mode on button click
+modeBtn.addEventListener('click', async () => {
+  const newMode = modeBtn.textContent.trim().toLowerCase() === 'game mode' ? 'explore' : 'game';
+  await fetch(`${API_BASE}/set-mode?mode=${newMode}`, {method: 'POST'});
+  // update button label
+  modeBtn.textContent = newMode === 'game' ? 'Game Mode' : 'Explore Mode';
+  applyMode(newMode);
+  fetchState();
+});
 
 async function fetchState() {
   try {
