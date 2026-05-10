@@ -59,6 +59,24 @@
           <button id="load-fen-btn" class="glass-btn small">Load</button>
         </div>
       </div>
+      <section class="pgn-container">
+        <h3>Game Navigation</h3>
+        <textarea id="pgn-input" placeholder="Paste PGN here..."></textarea>
+        <div class="pgn-controls">
+          <input type="file" id="pgn-file-input" style="display: none;" accept=".pgn">
+          <button id="browse-pgn-btn" class="glass-btn">Browse Files</button>
+          <button id="load-pgn-btn" class="glass-btn">Load Paste</button>
+        </div>
+        <div id="game-list-container" class="game-list" style="display: none;">
+          <h4>Select Game</h4>
+          <ul id="game-list"></ul>
+        </div>
+        <div class="nav-controls" id="nav-controls" style="display: none;">
+          <button id="prev-move-btn" class="glass-btn">←</button>
+          <span id="move-index">0 / 0</span>
+          <button id="next-move-btn" class="glass-btn">→</button>
+        </div>
+      </section>
     </aside>
   </div>
   

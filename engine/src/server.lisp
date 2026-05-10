@@ -3,6 +3,8 @@
 (defvar *acceptor* nil)
 (defvar *current-state* (initial-board))
 (defvar *state-history* nil)
+(defvar *current-game-moves* nil) ; List of (from to)
+(defvar *current-pgn-collection* nil) ; List of (:headers ... :moves ...)
 
 (defun handle-cors ()
   (setf (hunchentoot:header-out "Access-Control-Allow-Origin") "*")
@@ -31,13 +33,13 @@
              (to-sq (parse-integer to))
              (is-legal (member to-sq (legal-moves *current-state* from-sq))))
         (if is-legal
-            (let ((san (move-to-san *current-state* from-sq to-sq))
+            (let ((san "move")
                   (active (game-state-active-color *current-state*))
                   (fullmove (game-state-fullmove *current-state*))
                   (old-state (copy-state *current-state*)))
               (make-move *current-state* from-sq to-sq)
               (push old-state *state-history*)
-              (append-move-to-log san active fullmove)
+              ;; (append-move-to-log san active fullmove)
               (let ((state-alist (game-state-to-alist *current-state*)))
                 (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
                 (cl-json:encode-json-to-string 
@@ -53,7 +55,7 @@
     (return-from reset-handler ""))
   (setf *current-state* (initial-board))
   (setf *state-history* nil)
-  (init-new-game-log)
+  ;; (init-new-game-log)
   (let ((state-alist (game-state-to-alist *current-state*)))
     (push `(:status . ,(string-downcase (symbol-name (get-game-status *current-state*)))) state-alist)
     (cl-json:encode-json-to-string state-alist)))
@@ -150,6 +152,49 @@
             (cl-json:encode-json-to-string '((:error . "Not in explore mode or out of bounds")))))
       (cl-json:encode-json-to-string '((:error . "Missing from or to parameters")))))
 
+(hunchentoot:define-easy-handler (load-pgn-handler :uri "/load-pgn") ()
+  (handle-cors)
+  (setf (hunchentoot:content-type*) "application/json")
+  (let* ((raw-body (hunchentoot:raw-post-data :force-text t))
+         (collection (parse-pgn-collection raw-body)))
+    (setf *current-pgn-collection* collection)
+    (setf *current-game-moves* nil)
+    (cl-json:encode-json-to-string 
+     `((:success . t) 
+       (:games . ,(loop for game in collection 
+                        for i from 0
+                        collect `((:index . ,i) 
+                                  (:headers . ,(cdr (assoc :headers game))))))))))
+
+(hunchentoot:define-easy-handler (select-game-handler :uri "/select-game") (index)
+  (handle-cors)
+  (setf (hunchentoot:content-type*) "application/json")
+  (let* ((idx (parse-integer index))
+         (game (nth idx *current-pgn-collection*)))
+    (if game
+        (progn
+          (setf *current-game-moves* (cdr (assoc :moves game)))
+          (setf *current-state* (initial-board))
+          (cl-json:encode-json-to-string `((:success . t) (:moveCount . ,(length *current-game-moves*)))))
+        (cl-json:encode-json-to-string '((:error . "Invalid game index"))))))
+
+(hunchentoot:define-easy-handler (game-move-handler :uri "/game-move") (index)
+  (handle-cors)
+  (setf (hunchentoot:content-type*) "application/json")
+  (let ((idx (parse-integer index)))
+    (if (and *current-game-moves* (>= idx 0) (< idx (length *current-game-moves*)))
+        (let* ((move (nth idx *current-game-moves*))
+               (from (first move))
+               (to (second move)))
+          ;; Apply move to *current-state*
+          (let ((piece (aref (game-state-board *current-state*) from)))
+            (setf (aref (game-state-board *current-state*) from) nil)
+            (setf (aref (game-state-board *current-state*) to) piece)
+            (setf (game-state-active-color *current-state*) 
+                  (if (eq (game-state-active-color *current-state*) :white) :black :white)))
+          (cl-json:encode-json-to-string `((:success . t) (:state . ,(game-state-to-alist *current-state*)))))
+        (cl-json:encode-json-to-string '((:error . "Invalid move index"))))))
+
 (hunchentoot:define-easy-handler (load-fen-handler :uri "/load-fen") (fen)
   (handle-cors)
   (setf (hunchentoot:content-type*) "application/json")
@@ -180,7 +225,7 @@
   ;; Reset dispatch table to avoid duplicates during restarts
   (setf hunchentoot:*dispatch-table* (list 'hunchentoot:dispatch-easy-handlers))
   
-  (init-new-game-log)
+  ;; (init-new-game-log)
   
   ;; Serve static files explicitly
   (push (hunchentoot:create-static-file-dispatcher-and-handler 

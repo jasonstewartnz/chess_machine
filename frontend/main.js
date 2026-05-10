@@ -525,5 +525,130 @@ loadFenBtn.addEventListener('click', async () => {
   }
 });
 
+// PGN Navigation
+const pgnInput = document.getElementById('pgn-input');
+const loadPgnBtn = document.getElementById('load-pgn-btn');
+const navControls = document.getElementById('nav-controls');
+const prevMoveBtn = document.getElementById('prev-move-btn');
+const nextMoveBtn = document.getElementById('next-move-btn');
+const moveIndexDisplay = document.getElementById('move-index');
+
+const pgnFileInput = document.getElementById('pgn-file-input');
+const browsePgnBtn = document.getElementById('browse-pgn-btn');
+const gameListContainer = document.getElementById('game-list-container');
+const gameList = document.getElementById('game-list');
+
+let gameMoveCount = 0;
+let currentMoveIndex = -1;
+
+browsePgnBtn.addEventListener('click', () => pgnFileInput.click());
+
+pgnFileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    loadPgn(e.target.result);
+  };
+  reader.readAsText(file);
+});
+
+loadPgnBtn.addEventListener('click', () => {
+  loadPgn(pgnInput.value);
+});
+
+async function loadPgn(pgnText) {
+  if (!pgnText) return;
+  try {
+    const res = await fetch(`${API_BASE}/load-pgn`, {
+      method: 'POST',
+      body: pgnText
+    });
+    const data = await res.json();
+    if (data.success) {
+      renderGameList(data.games);
+      gameListContainer.style.display = 'block';
+      navControls.style.display = 'none'; // Hide nav until game selected
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function renderGameList(games) {
+  gameList.innerHTML = '';
+  games.forEach(g => {
+    const li = document.createElement('li');
+    li.className = 'game-item';
+    const white = g.headers.WHITE || 'Unknown';
+    const black = g.headers.BLACK || 'Unknown';
+    const result = g.headers.RESULT || '*';
+    const date = g.headers.DATE || '';
+    
+    li.innerHTML = `
+      <div>${white} vs ${black}</div>
+      <span class="meta">${result} | ${date}</span>
+    `;
+    li.onclick = () => selectGame(g.index);
+    gameList.appendChild(li);
+  });
+}
+
+async function selectGame(index) {
+  try {
+    const res = await fetch(`${API_BASE}/select-game?index=${index}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      gameMoveCount = data.moveCount;
+      currentMoveIndex = -1;
+      navControls.style.display = 'flex';
+      gameListContainer.style.display = 'none';
+      updateMoveDisplay();
+      fetchState();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+prevMoveBtn.addEventListener('click', async () => {
+  if (currentMoveIndex < 0) return;
+  
+  // To go back, we reset and move forward to index-1
+  // This is a simple implementation; ideally server would support undo
+  currentMoveIndex--;
+  if (currentMoveIndex === -1) {
+    await fetch(`${API_BASE}/reset`, { method: 'POST' });
+  } else {
+    // Replay from start to currentMoveIndex
+    await fetch(`${API_BASE}/reset`, { method: 'POST' });
+    for (let i = 0; i <= currentMoveIndex; i++) {
+      await fetch(`${API_BASE}/game-move?index=${i}`, { method: 'POST' });
+    }
+  }
+  updateMoveDisplay();
+  fetchState();
+});
+
+nextMoveBtn.addEventListener('click', async () => {
+  if (currentMoveIndex >= gameMoveCount - 1) return;
+  
+  currentMoveIndex++;
+  try {
+    const res = await fetch(`${API_BASE}/game-move?index=${currentMoveIndex}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      updateMoveDisplay();
+      fetchState();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+function updateMoveDisplay() {
+  moveIndexDisplay.textContent = `${currentMoveIndex + 1} / ${gameMoveCount}`;
+}
+
 fetchState();
 applyMode(currentMode);

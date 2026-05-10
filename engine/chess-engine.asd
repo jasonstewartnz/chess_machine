@@ -4,7 +4,7 @@
   :description "A chess engine and REST API built in Common Lisp"
   :version "0.1.0"
   :author "Antigravity"
-  :depends-on ("hunchentoot" "cl-json" "alexandria")
+  :depends-on ("hunchentoot" "cl-json" "alexandria" "split-sequence")
   :components ((:module "src"
                 :components
                  ((:file "packages")
