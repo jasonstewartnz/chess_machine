@@ -448,10 +448,20 @@ header p {
 }
 
 .settings-section h3 {
-  margin: 0;
+  margin: 0 0 10px 0;
   font-size: 0.8rem;
   color: var(--text-dim);
   text-transform: uppercase;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.button-group .glass-btn {
+  flex: 1;
 }
 
 .switch {

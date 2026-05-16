@@ -650,24 +650,17 @@ function updateMoveDisplay() {
   moveIndexDisplay.textContent = `${currentMoveIndex + 1} / ${gameMoveCount}`;
 }
 
-const analysisToggle = document.getElementById('analysis-toggle');
+const analyzeBtn = document.getElementById('analyze-btn');
 const evalFill = document.getElementById('eval-fill');
 const evalText = document.getElementById('eval-text');
 
-analysisToggle.addEventListener('change', () => {
-  if (analysisToggle.checked) {
-    runAnalysis();
-  } else {
-    // Reset bar
-    evalFill.style.height = '50%';
-    evalText.textContent = '0.0';
-    clearBestMoveHighlight();
-  }
+analyzeBtn.addEventListener('click', () => {
+  runAnalysis();
 });
 
 async function runAnalysis() {
-  if (!analysisToggle.checked) return;
-  
+  analyzeBtn.disabled = true;
+  analyzeBtn.textContent = 'Analyzing...';
   try {
     const res = await fetch(`${API_BASE}/analyze`);
     const data = await res.json();
@@ -677,6 +670,9 @@ async function runAnalysis() {
     }
   } catch (err) {
     console.error(err);
+  } finally {
+    analyzeBtn.disabled = false;
+    analyzeBtn.textContent = 'Analyze Position';
   }
 }
 
@@ -719,13 +715,6 @@ function clearBestMoveHighlight() {
     el.classList.remove('best-move-from', 'best-move-to');
   });
 }
-
-// Update fetchState to trigger analysis
-const originalFetchState = fetchState;
-fetchState = async () => {
-  await originalFetchState();
-  if (analysisToggle.checked) runAnalysis();
-};
 
 // Initial load
 fetchState();
